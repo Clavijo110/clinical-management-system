@@ -57,6 +57,7 @@ const DashboardDirector = () => {
       }
 
       try {
+        setLoading(true);
         const { data: docentes } = await supabase
           .from('user_roles')
           .select('*')
@@ -74,16 +75,24 @@ const DashboardDirector = () => {
           atenciones: atenciones?.length || 0,
         });
 
-        // Generar datos para gráficos
-        const semesterData = [
-          { semestre: 'S1', estudiantes: Math.floor(Math.random() * 15), atenciones: Math.floor(Math.random() * 50) },
-          { semestre: 'S2', estudiantes: Math.floor(Math.random() * 15), atenciones: Math.floor(Math.random() * 50) },
-          { semestre: 'S3', estudiantes: Math.floor(Math.random() * 15), atenciones: Math.floor(Math.random() * 50) },
-          { semestre: 'S4', estudiantes: Math.floor(Math.random() * 15), atenciones: Math.floor(Math.random() * 50) },
-          { semestre: 'S5', estudiantes: Math.floor(Math.random() * 15), atenciones: Math.floor(Math.random() * 50) },
-          { semestre: 'S6', estudiantes: Math.floor(Math.random() * 15), atenciones: Math.floor(Math.random() * 50) },
-        ];
-        setChartData(semesterData);
+        // Generar datos reales para gráficos por semestre
+        const semesterStats = (estudiantes || []).reduce((acc, est) => {
+          const sem = `S${est.semestre_actual}`;
+          if (!acc[sem]) acc[sem] = { semestre: sem, estudiantes: 0, atenciones: 0 };
+          acc[sem].estudiantes += 1;
+          acc[sem].atenciones += atenciones?.filter(a => a.estudiante_id === est.id).length || 0;
+          return acc;
+        }, {});
+
+        const chartDataArray = Object.values(semesterStats).sort((a, b) => a.semestre.localeCompare(b.semestre));
+        
+        // Asegurar que aparezcan los 6 semestres aunque no tengan datos
+        const fullChartData = [1, 2, 3, 4, 5, 6].map(s => {
+          const name = `S${s}`;
+          return chartDataArray.find(d => d.semestre === name) || { semestre: name, estudiantes: 0, atenciones: 0 };
+        });
+
+        setChartData(fullChartData);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -234,6 +243,20 @@ const DashboardDirector = () => {
             ⚡ Acciones Rápidas
           </Typography>
           <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Button
+                fullWidth
+                variant="contained"
+                startIcon={<GroupsIcon />}
+                onClick={() => navigate('/gestion-usuarios')}
+                sx={{
+                  background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+                  p: 1.5,
+                }}
+              >
+                Gestión de Docentes
+              </Button>
+            </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <Button
                 fullWidth

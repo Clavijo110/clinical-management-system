@@ -32,6 +32,8 @@ import { useAuth } from '../contexts/AuthContext';
 import NavBar from './NavBar';
 import { FileDownload, Folder } from '@mui/icons-material';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const Reportes = () => {
   const [estudiantes, setEstudiantes] = useState([]);
@@ -47,7 +49,7 @@ const Reportes = () => {
       setLoading(true);
       let query = supabase.from('estudiantes').select('*');
 
-      if (!isDirector) {
+      if (!isDirector()) {
         query = query.eq('docente_id', user.id);
       }
 
@@ -122,59 +124,63 @@ const Reportes = () => {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    let yPosition = 15;
+    let yPosition = 20;
 
     // Encabezado
-    doc.setFontSize(18);
-    doc.text('REPORTE DE ESTUDIANTE', pageWidth / 2, yPosition, { align: 'center' });
+    doc.setFontSize(22);
+    doc.setTextColor(30, 58, 138); // UV Blue
+    doc.text('REPORTE CLÍNICO SEMESTRAL', pageWidth / 2, yPosition, { align: 'center' });
 
-    yPosition += 12;
-    doc.setFontSize(10);
+    yPosition += 15;
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
     doc.text(`Estudiante: ${reportData.estudiante?.nombre}`, 15, yPosition);
-    yPosition += 6;
-    doc.text(`Semestre: ${reportData.estudiante?.semestre_actual}`, 15, yPosition);
-    yPosition += 6;
-    doc.text(
-      `Fecha de Reporte: ${new Date().toLocaleDateString('es-CO')}`,
-      15,
-      yPosition
-    );
-
-    yPosition += 12;
-    doc.setFontSize(12);
-    doc.text('RESUMEN', 15, yPosition);
     yPosition += 8;
-    doc.setFontSize(10);
-    doc.text(
-      `Total Pacientes: ${reportData.pacientes.length}`,
-      15,
-      yPosition
-    );
-    yPosition += 6;
-    doc.text(
-      `Total Atenciones: ${reportData.atenciones.length}`,
-      15,
-      yPosition
-    );
-
-    // Atenciones
-    yPosition += 12;
-    doc.setFontSize(12);
-    doc.text('ATENCIONES REGISTRADAS', 15, yPosition);
+    doc.text(`Semestre Actual: S${reportData.estudiante?.semestre_actual}`, 15, yPosition);
     yPosition += 8;
+    doc.text(`Docente Supervisor: ${user.email}`, 15, yPosition);
+    yPosition += 8;
+    doc.text(`Fecha de Reporte: ${new Date().toLocaleDateString('es-CO')}`, 15, yPosition);
 
-    const atencionesData = reportData.atenciones.slice(0, 5).map((a) => [
-      a.fecha,
-      a.diagnostico?.substring(0, 20),
-      a.estado,
+    yPosition += 15;
+    doc.setFontSize(16);
+    doc.setTextColor(30, 58, 138);
+    doc.text('RESUMEN DE ACTIVIDAD', 15, yPosition);
+    
+    yPosition += 10;
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`• Total de Pacientes Activos: ${reportData.pacientes.length}`, 20, yPosition);
+    yPosition += 8;
+    doc.text(`• Total de Atenciones Realizadas: ${reportData.atenciones.length}`, 20, yPosition);
+
+    // Tabla de Pacientes
+    yPosition += 15;
+    doc.setFontSize(16);
+    doc.setTextColor(30, 58, 138);
+    doc.text('LISTADO DE PACIENTES', 15, yPosition);
+    
+    const pacientesData = reportData.pacientes.map((p, index) => [
+      index + 1,
+      p.nombre,
+      p.edad,
+      p.diagnostico?.substring(0, 50),
+      p.quirurgico ? 'Sí' : 'No'
     ]);
 
     doc.autoTable({
-      head: [['Fecha', 'Diagnóstico', 'Estado']],
-      body: atencionesData,
-      startY: yPosition,
+      head: [['#', 'Nombre del Paciente', 'Edad', 'Diagnóstico', 'Quirúrgico']],
+      body: pacientesData,
+      startY: yPosition + 5,
       margin: 15,
+      styles: { fontSize: 9 },
+      headStyles: { fillStyle: [30, 58, 138] }
     });
+
+    // Firma (al final de la última página)
+    const finalY = doc.lastAutoTable.finalY + 30;
+    doc.line(15, finalY, 80, finalY);
+    doc.text('Firma Docente Supervisor', 15, finalY + 7);
 
     doc.save(`reporte_${reportData.estudiante?.nombre.replace(/\s/g, '_')}.pdf`);
   };
@@ -182,26 +188,49 @@ const Reportes = () => {
   const exportExcel = () => {
     if (!reportData) return;
 
-    // Simple CSV export
-    const headers = ['Fecha', 'Diagnóstico', 'Tratamiento', 'Estado'];
-    const rows = reportData.atenciones.map((a) => [
-      a.fecha,
-      a.diagnostico,
-      a.tratamiento,
-      a.estado,
-    ]);
+    // Crear libro de trabajo
+    const wb = XLSX.utils.book_new();
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
-    ].join('\n');
+    // Hoja 1: Resumen del Estudiante
+    const resumenData = [
+      ['REPORTE CLÍNICO SEMESTRAL'],
+      ['Estudiante', reportData.estudiante?.nombre],
+      ['Semestre', `S${reportData.estudiante?.semestre_actual}`],
+      ['Fecha Reporte', new Date().toLocaleDateString('es-CO')],
+      [],
+      ['INDICADORES'],
+      ['Total Pacientes', reportData.pacientes.length],
+      ['Total Atenciones', reportData.atenciones.length]
+    ];
+    const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reporte_${reportData.estudiante?.nombre.replace(/\s/g, '_')}.csv`;
-    a.click();
+    // Hoja 2: Pacientes
+    const wsPacientes = XLSX.utils.json_to_sheet(reportData.pacientes.map(p => ({
+      Nombre: p.nombre,
+      Telefono: p.telefono,
+      Edad: p.edad,
+      Diagnostico: p.diagnostico,
+      Maloclusion: p.tipo_maloclusion,
+      Quirurgico: p.quirurgico ? 'SÍ' : 'NO',
+      Extracciones: p.extracciones ? 'SÍ' : 'NO',
+      Notas: p.notas,
+      Ingreso: p.fecha_ingreso
+    })));
+    XLSX.utils.book_append_sheet(wb, wsPacientes, 'Pacientes');
+
+    // Hoja 3: Atenciones
+    const wsAtenciones = XLSX.utils.json_to_sheet(reportData.atenciones.map(a => ({
+      Fecha: a.fecha,
+      PacienteID: a.paciente_id,
+      Procedimiento: a.procedimiento,
+      Observaciones: a.observaciones,
+      Semestre: a.semestre
+    })));
+    XLSX.utils.book_append_sheet(wb, wsAtenciones, 'Atenciones');
+
+    // Descargar archivo
+    XLSX.writeFile(wb, `reporte_${reportData.estudiante?.nombre.replace(/\s/g, '_')}.xlsx`);
   };
 
   if (loading && !reportData) {
@@ -335,7 +364,7 @@ const Reportes = () => {
                   startIcon={<FileDownload />}
                   sx={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}
                 >
-                  Descargar CSV
+                  Descargar Excel
                 </Button>
               </DialogActions>
             </Dialog>

@@ -17,6 +17,7 @@ import ProfessionalForm from './ProfessionalForm';
 
 const GestionPacientes = () => {
   const [pacientes, setPacientes] = useState([]);
+  const [estudiantes, setEstudiantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -24,7 +25,15 @@ const GestionPacientes = () => {
   const { user, isDirector } = useAuth();
 
   const formFields = [
+    { name: 'foto', label: 'Foto de Identificación', type: 'image', fullWidth: true },
     { name: 'nombre', label: 'Nombre Completo', required: true, fullWidth: true },
+    {
+      name: 'estudiante_id',
+      label: 'Estudiante Asignado',
+      type: 'select',
+      required: true,
+      options: estudiantes.map(e => ({ value: e.id, label: e.nombre })),
+    },
     { name: 'telefono', label: 'Teléfono', type: 'tel' },
     { name: 'edad', label: 'Edad', type: 'number', inputProps: { min: 0, max: 100 } },
     { name: 'diagnostico', label: 'Diagnóstico', required: true, fullWidth: true },
@@ -57,6 +66,7 @@ const GestionPacientes = () => {
           estudiantesQuery = estudiantesQuery.eq('docente_id', user.id);
         }
         const { data: estData } = await estudiantesQuery;
+        setEstudiantes(estData || []);
 
         // Obtener pacientes
         let pacientesQuery = supabase.from('pacientes').select('*');
@@ -79,11 +89,52 @@ const GestionPacientes = () => {
 
   const handleAddPaciente = async (formData) => {
     try {
+      setLoading(true);
       setError(null);
+
+      // RF-12: Cada estudiante puede tener hasta 10 pacientes activos por mes
+      if (formData.estudiante_id) {
+        const { data: activeCount, count, error: countError } = await supabase
+          .from('pacientes')
+          .select('*', { count: 'exact', head: true })
+          .eq('estudiante_id', formData.estudiante_id);
+        
+        if (countError) throw countError;
+        
+        // Si es un nuevo paciente o cambió de estudiante, validar límite
+        const isNewOrChanged = !editingId || (pacientes.find(p => p.id === editingId)?.estudiante_id !== formData.estudiante_id);
+        if (isNewOrChanged && count >= 10) {
+          throw new Error('Este estudiante ya tiene el límite máximo de 10 pacientes activos.');
+        }
+      }
+      
+      let fotoUrl = formData.foto;
+
+      // Subir imagen si existe una nueva
+      if (formData.fotoFile) {
+        const file = formData.fotoFile;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `pacientes/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('identificaciones')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('identificaciones')
+          .getPublicUrl(filePath);
+        
+        fotoUrl = publicUrl;
+      }
+
       const pacienteData = {
         ...formData,
-        estudiante_id: null,
+        foto: fotoUrl,
       };
+      delete pacienteData.fotoFile; // Limpiar antes de enviar a DB
 
       if (editingId) {
         const { error: updateError } = await supabase
@@ -97,9 +148,10 @@ const GestionPacientes = () => {
       } else {
         const { data, error: insertError } = await supabase
           .from('pacientes')
-          .insert([pacienteData]);
+          .insert([pacienteData])
+          .select();
         if (insertError) throw insertError;
-        setPacientes([...pacientes, data[0]]);
+        if (data) setPacientes([...pacientes, data[0]]);
       }
 
       setFormOpen(false);
@@ -107,6 +159,8 @@ const GestionPacientes = () => {
     } catch (err) {
       console.error('Error:', err);
       setError(err.message || 'Error al guardar paciente');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -204,6 +258,7 @@ const GestionPacientes = () => {
           open={formOpen}
           title={editingId ? 'Editar Paciente' : 'Agregar Nuevo Paciente'}
           fields={formFields}
+          initialData={editingId ? pacientes.find(p => p.id === editingId) : null}
           onClose={() => {
             setFormOpen(false);
             setEditingId(null);

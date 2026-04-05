@@ -77,34 +77,39 @@ const DashboardDocente = () => {
           .eq('docente_id', user.id);
 
         setEstudiantesList(estudiantes || []);
-        const estudianteIds = estudiantes?.map((e) => e.id) || [];
 
-        const { data: pacientes } = await supabase
-          .from('pacientes')
-          .select('*')
-          .in('estudiante_id', estudianteIds);
+        if (estudiantes && estudiantes.length > 0) {
+          const estudianteIds = estudiantes.map((e) => e.id);
 
-        const { data: atenciones } = await supabase
-          .from('atenciones')
-          .select('*')
-          .in('estudiante_id', estudianteIds);
+          const { data: pacientes } = await supabase
+            .from('pacientes')
+            .select('*')
+            .in('estudiante_id', estudianteIds);
 
-        setStats({
-          estudiantes: estudiantes?.length || 0,
-          pacientes: pacientes?.length || 0,
-          atenciones: atenciones?.length || 0,
-        });
+          const { data: atenciones } = await supabase
+            .from('atenciones')
+            .select('*')
+            .in('estudiante_id', estudianteIds);
 
-        // Datos para gráficos
-        const semesterData = [
-          { semestre: 'S1', pacientes: 5 + Math.floor(Math.random() * 5), atenciones: 15 + Math.floor(Math.random() * 20) },
-          { semestre: 'S2', pacientes: 6 + Math.floor(Math.random() * 4), atenciones: 18 + Math.floor(Math.random() * 22) },
-          { semestre: 'S3', pacientes: 7 + Math.floor(Math.random() * 3), atenciones: 20 + Math.floor(Math.random() * 25) },
-          { semestre: 'S4', pacientes: 8 + Math.floor(Math.random() * 2), atenciones: 22 + Math.floor(Math.random() * 20) },
-        ];
-        setChartData(semesterData);
+          setStats({
+            estudiantes: estudiantes.length,
+            pacientes: pacientes?.length || 0,
+            atenciones: atenciones?.length || 0,
+          });
+
+          // Datos para gráfico (agrupados por semestre de estudiante)
+          const chartDataRaw = estudiantes.reduce((acc, est) => {
+            const sem = `S${est.semestre_actual}`;
+            if (!acc[sem]) acc[sem] = { semestre: sem, atenciones: 0, pacientes: 0 };
+            acc[sem].atenciones += atenciones?.filter((a) => a.estudiante_id === est.id).length || 0;
+            acc[sem].pacientes += pacientes?.filter((p) => p.estudiante_id === est.id).length || 0;
+            return acc;
+          }, {});
+
+          setChartData(Object.values(chartDataRaw).sort((a, b) => a.semestre.localeCompare(b.semestre)));
+        }
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }

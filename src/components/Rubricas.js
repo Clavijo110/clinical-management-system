@@ -19,6 +19,7 @@ import {
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import NavBar from './NavBar';
+import ProfessionalForm from './ProfessionalForm';
 import AddIcon from '@mui/icons-material/Add';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -32,12 +33,25 @@ const Rubricas = () => {
   const [editId, setEditId] = useState(null);
   const { isDirector } = useAuth();
 
-  const [formData, setFormData] = useState({
-    semestre: 1,
-    criterios_minimos: '',
-    calidad_esperada: '',
-    observaciones: '',
-  });
+  const formFields = [
+    {
+      name: 'semestre',
+      label: 'Semestre',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 1, label: 'Semestre 1' },
+        { value: 2, label: 'Semestre 2' },
+        { value: 3, label: 'Semestre 3' },
+        { value: 4, label: 'Semestre 4' },
+        { value: 5, label: 'Semestre 5' },
+        { value: 6, label: 'Semestre 6' },
+      ],
+    },
+    { name: 'criterios_minimos', label: 'Criterios Mínimos', required: true, multiline: true, rows: 3, fullWidth: true },
+    { name: 'calidad_esperada', label: 'Calidad Esperada', multiline: true, rows: 2, fullWidth: true },
+    { name: 'observaciones', label: 'Observaciones', multiline: true, rows: 2, fullWidth: true },
+  ];
 
   useEffect(() => {
     fetchRubricas();
@@ -59,15 +73,8 @@ const Rubricas = () => {
   const handleOpenDialog = (item = null) => {
     if (item) {
       setEditId(item.id);
-      setFormData(item);
     } else {
       setEditId(null);
-      setFormData({
-        semestre: 1,
-        criterios_minimos: '',
-        calidad_esperada: '',
-        observaciones: '',
-      });
     }
     setOpenDialog(true);
   };
@@ -77,18 +84,8 @@ const Rubricas = () => {
     setError('');
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSave = async () => {
+  const handleSave = async (formData) => {
     try {
-      if (!formData.semestre || !formData.criterios_minimos) {
-        setError('Por favor completa los campos obligatorios');
-        return;
-      }
-
       if (editId) {
         const { error: err } = await supabase
           .from('rubricas')
@@ -144,173 +141,77 @@ const Rubricas = () => {
           </Alert>
         )}
 
-        {isDirector && (
+        {isDirector() && (
           <Box sx={{ mb: 3 }}>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => handleOpenDialog()}
-              sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+              sx={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)' }}
             >
               Nueva Rúbrica
             </Button>
           </Box>
         )}
 
-        {rubricas.length === 0 ? (
-          <Alert severity="info">No hay rúbricas definidas</Alert>
-        ) : (
-          <Grid container spacing={3}>
-            {rubricas.map((rubrica) => (
-              <Grid item xs={12} md={6} key={rubrica.id}>
-                <Card
-                  sx={{
-                    background: `linear-gradient(135deg, #667eea15 0%, #764ba215 100%)`,
-                    border: '2px solid #667eea30',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: '0 8px 24px #667eea30',
-                    },
-                  }}
-                >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h5">
-                        Semestre {rubrica.semestre}
-                      </Typography>
-                      <Chip label={`S${rubrica.semestre}`} color="primary" />
-                    </Box>
-
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                        📋 Criterios Mínimos:
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#666' }}>
-                        {rubrica.criterios_minimos}
-                      </Typography>
-                    </Box>
-
-                    {rubrica.calidad_esperada && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                          ⭐ Calidad Esperada:
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#666' }}>
-                          {rubrica.calidad_esperada}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {rubrica.observaciones && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                          📝 Observaciones:
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#666' }}>
-                          {rubrica.observaciones}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {isDirector && (
-                      <Box sx={{ display: 'flex', gap: 1, mt: 3 }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<EditIcon />}
+        <Grid container spacing={3}>
+          {rubricas.map((rubrica) => (
+            <Grid item xs={12} md={6} key={rubrica.id}>
+              <Card sx={{ height: '100%', position: 'relative' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                    <Chip label={`Semestre ${rubrica.semestre}`} color="primary" />
+                    {isDirector() && (
+                      <Box>
+                        <EditIcon
+                          sx={{ cursor: 'pointer', mr: 1, color: 'text.secondary' }}
                           onClick={() => handleOpenDialog(rubrica)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          startIcon={<DeleteIcon />}
+                        />
+                        <DeleteIcon
+                          sx={{ cursor: 'pointer', color: 'error.main' }}
                           onClick={() => handleDelete(rubrica.id)}
-                        >
-                          Eliminar
-                        </Button>
+                        />
                       </Box>
                     )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-
-        {/* Dialog para crear/editar */}
-        <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
-          <DialogTitle>
-            {editId ? '✏️ Editar Rúbrica' : '➕ Nueva Rúbrica'}
-          </DialogTitle>
-          <DialogContent sx={{ pt: 3 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  name="semestre"
-                  value={formData.semestre}
-                  onChange={handleInputChange}
-                  label="Semestre *"
-                  inputProps={{ min: 1, max: 10 }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  name="criterios_minimos"
-                  value={formData.criterios_minimos}
-                  onChange={handleInputChange}
-                  label="Criterios Mínimos *"
-                  multiline
-                  rows={3}
-                  placeholder="Ej: 10 atenciones, 5 pacientes diferentes, etc."
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  name="calidad_esperada"
-                  value={formData.calidad_esperada}
-                  onChange={handleInputChange}
-                  label="Calidad Esperada"
-                  multiline
-                  rows={3}
-                  placeholder="Especifica los estándares de calidad"
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  name="observaciones"
-                  value={formData.observaciones}
-                  onChange={handleInputChange}
-                  label="Observaciones"
-                  multiline
-                  rows={2}
-                  variant="outlined"
-                />
-              </Grid>
+                  </Box>
+                  <Typography variant="h6" gutterBottom>
+                    Criterios Mínimos
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    {rubrica.criterios_minimos}
+                  </Typography>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Calidad Esperada
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    {rubrica.calidad_esperada}
+                  </Typography>
+                  {rubrica.observaciones && (
+                    <>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Observaciones
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {rubrica.observaciones}
+                      </Typography>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
             </Grid>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDialog}>Cancelar</Button>
-            <Button
-              onClick={handleSave}
-              variant="contained"
-              sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
-              startIcon={<SaveIcon />}
-            >
-              Guardar
-            </Button>
-          </DialogActions>
-        </Dialog>
+          ))}
+        </Grid>
+
+        <ProfessionalForm
+          open={openDialog}
+          title={editId ? 'Editar Rúbrica' : 'Nueva Rúbrica'}
+          fields={formFields}
+          initialData={editId ? rubricas.find(r => r.id === editId) : null}
+          onClose={handleCloseDialog}
+          onSubmit={handleSave}
+          loading={loading}
+          error={error}
+        />
       </Container>
     </>
   );

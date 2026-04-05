@@ -2,11 +2,14 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { AuthProvider } from './contexts/AuthContext';
+import { Box, CircularProgress, Typography } from '@mui/material';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import DashboardDirector from './components/DashboardDirector';
+import DashboardDocente from './components/DashboardDocente';
 import GestionEstudiantes from './components/GestionEstudiantes';
 import GestionPacientes from './components/GestionPacientes';
+import GestionUsuarios from './components/GestionUsuarios';
 import RegistroAtenciones from './components/RegistroAtenciones';
 import Rubricas from './components/Rubricas';
 import Reportes from './components/Reportes';
@@ -174,6 +177,38 @@ const theme = createTheme({
   },
 });
 
+const DashboardRouter = () => {
+  const { loading, isDirector, isDocente } = useAuth();
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isDirector()) {
+    return <DashboardDirector />;
+  }
+
+  if (isDocente()) {
+    return <DashboardDocente />;
+  }
+
+  return (
+    <Box sx={{ p: 4, textAlign: 'center' }}>
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+        Usuario autenticado sin rol asignado
+      </Typography>
+      <Typography variant="body1" color="text.secondary">
+        El usuario ingresó correctamente, pero no tiene un rol asociado en la tabla <strong>user_roles</strong>.
+        Por favor revisa la configuración de Supabase y asigna el rol <strong>director</strong> o <strong>docente</strong>.
+      </Typography>
+    </Box>
+  );
+};
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -199,7 +234,7 @@ function App() {
               path="/dashboard" 
               element={
                 <ProtectedRoute requireAuth={true}>
-                  <DashboardDirector />
+                  <DashboardRouter />
                 </ProtectedRoute>
               } 
             />
@@ -209,7 +244,7 @@ function App() {
               path="/gestion-usuarios" 
               element={
                 <ProtectedRoute requiredRole="director">
-                  <GestionEstudiantes />
+                  <GestionUsuarios />
                 </ProtectedRoute>
               } 
             />

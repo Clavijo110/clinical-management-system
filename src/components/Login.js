@@ -9,7 +9,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loading: authLoading } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -23,15 +23,27 @@ const Login = () => {
       return;
     }
 
-    const { success, error: loginError } = await login(email, password);
-    
-    if (success) {
-      navigate('/');
-    } else {
-      setError(loginError || 'Error al iniciar sesión');
+    try {
+      console.log('Intentando iniciar sesión para:', email);
+      const { success, error: loginError } = await login(email, password);
+      console.log('Resultado login:', { success, loginError });
+      
+      if (success) {
+        console.log('Login exitoso, navegando a /');
+        navigate('/');
+      } else {
+        console.error('Error en login:', loginError);
+        setError(loginError || 'Error al iniciar sesión');
+      }
+    } catch (err) {
+      console.error('Excepción en handleLogin:', err);
+      setError('Ocurrió un error inesperado al intentar ingresar.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  const isAnyLoading = loading || authLoading;
 
   return (
     <Container maxWidth="sm">
@@ -59,7 +71,7 @@ const Login = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="ejemplo@uv.edu.co"
-            disabled={loading}
+            disabled={isAnyLoading}
             autoComplete="email"
           />
 
@@ -71,7 +83,7 @@ const Login = () => {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
+            disabled={isAnyLoading}
             autoComplete="current-password"
           />
 
@@ -80,10 +92,26 @@ const Login = () => {
             fullWidth 
             variant="contained" 
             sx={{ mt: 3, mb: 2 }}
-            disabled={loading}
+            disabled={isAnyLoading}
           >
-            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            {isAnyLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </Button>
+
+          {isAnyLoading && (
+            <Box sx={{ textAlign: 'center', mt: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                Esperando respuesta del servidor...
+              </Typography>
+              <Button 
+                size="small" 
+                variant="text" 
+                onClick={() => window.location.reload()}
+                sx={{ mt: 1, textTransform: 'none', fontSize: '0.75rem' }}
+              >
+                ¿Tarda demasiado? Recargar página
+              </Button>
+            </Box>
+          )}
         </Box>
 
         <Box sx={{ mt: 4, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1, textAlign: 'center' }}>

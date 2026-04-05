@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
 // Crear contexto
@@ -13,80 +13,92 @@ export const AuthProvider = ({ children }) => {
 
   // Obtener usuario y su rol al cargar la app
   useEffect(() => {
+    let isMounted = true;
+
     const initializeAuth = async () => {
+      console.log('Iniciando AuthContext...');
       try {
-        // Obtener usuario autenticado
-        const { data: { user: authUser } } = await supabase.auth.getUser();
+        // Intentar obtener la sesión (más rápido que getUser en algunos casos)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (authUser) {
-          setUser(authUser);
-          
-          // Obtener rol de la tabla user_roles
-          const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('rol')
-            .eq('id', authUser.id)
-            .eq('estado', true)
-            .single();
+        if (sessionError) throw sessionError;
 
-          if (roleError && roleError.code !== 'PGRST116') {
-            console.error('Error fetching role:', roleError);
-            setError('Error al obtener el rol del usuario');
-          } else if (roleData) {
-            setUserRole(roleData.rol);
-          }
-        }
-      } catch (err) {
-        console.error('Auth initialization error:', err);
-        setError('Error al inicializar autenticación');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    // Escuchar cambios de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
+        if (session?.user && isMounted) {
+          console.log('Sesión encontrada para:', session.user.email);
           setUser(session.user);
-          // Recargar rol cuando hay cambio de sesión
-          const { data: roleData } = await supabase
+          
+          // Obtener rol
+          const { data: roleData, error: roleError } = await supabase
             .from('user_roles')
             .select('rol')
             .eq('id', session.user.id)
             .eq('estado', true)
             .single();
-          
-          if (roleData) {
+
+          if (roleError) {
+            console.error('Error obteniendo rol para el usuario:', session.user.email, roleError);
+          }
+
+          if (roleData && isMounted) {
+            console.log('Rol cargado exitosamente:', roleData.rol, 'para', session.user.email);
             setUserRole(roleData.rol);
+          } else {
+            console.warn('No se encontró rol activo para el usuario:', session.user.email);
           }
         } else {
-          setUser(null);
-          setUserRole(null);
+          console.log('No se encontró sesión activa.');
+        }
+      } catch (err) {
+        console.error('Error inicializando auth:', err);
+      } finally {
+        if (isMounted) {
+          console.log('Carga de auth finalizada.');
+          setLoading(false);
         }
       }
-    );
+    };
+
+    initializeAuth();
+
+    // Suscribirse a cambios
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted) {
+        setUser(session?.user ?? null);
+        if (!session) {
+          setUserRole(null);
+          setLoading(false);
+        }
+      }
+    });
 
     return () => {
-      subscription?.unsubscribe();
+      isMounted = false;
+      subscription.unsubscribe();
     };
   }, []);
 
-  // Funciones de autenticación
-  const login = async (email, password) => {
+  // Funciones de autenticación memorizadas
+  const login = useCallback(async (email, password) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      console.log('AuthContext login:', email);
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      console.log('Supabase signInWithPassword response:', { user: !!data?.user, error: signInError });
       
-      // Obtener rol tras login exitoso
-      const { data: roleData } = await supabase
+      if (signInError) throw signInError;
+      
+      // Actualizar estado local inmediatamente
+      if (data?.user) {
+        setUser(data.user);
+      }
+      
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('rol')
         .eq('id', data.user.id)
         .eq('estado', true)
         .single();
+      
+      console.log('Role fetch response:', { roleData, roleError });
       
       if (roleData) {
         setUserRole(roleData.rol);
@@ -94,12 +106,13 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true, error: null };
     } catch (err) {
+      console.error('AuthContext login catch error:', err);
       setError(err.message);
       return { success: false, error: err.message };
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
@@ -111,21 +124,21 @@ export const AuthProvider = ({ children }) => {
       setError(err.message);
       return { success: false, error: err.message };
     }
-  };
+  }, []);
 
-  // Verificar permisos
-  const hasRole = (requiredRole) => {
+  const hasRole = useCallback((requiredRole) => {
+    if (!userRole) return false;
     if (typeof requiredRole === 'string') {
       return userRole === requiredRole;
     }
     return requiredRole.includes(userRole);
-  };
+  }, [userRole]);
 
-  const isDirector = () => userRole === 'director';
-  const isDocente = () => userRole === 'docente';
-  const isAuthenticated = () => !!user;
+  const isDirector = useCallback(() => userRole === 'director', [userRole]);
+  const isDocente = useCallback(() => userRole === 'docente', [userRole]);
+  const isAuthenticated = useCallback(() => !!user, [user]);
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     userRole,
     loading,
@@ -136,7 +149,7 @@ export const AuthProvider = ({ children }) => {
     isDirector,
     isDocente,
     isAuthenticated,
-  };
+  }), [user, userRole, loading, error, login, logout, hasRole, isDirector, isDocente, isAuthenticated]);
 
   return (
     <AuthContext.Provider value={value}>

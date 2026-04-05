@@ -20,6 +20,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import NavBar from './NavBar';
 import ProfessionalTable from './ProfessionalTable';
+import ProfessionalForm from './ProfessionalForm';
 import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 
@@ -31,27 +32,49 @@ const RegistroAtenciones = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [error, setError] = useState('');
   const [editId, setEditId] = useState(null);
-  const { user } = useAuth();
+  const { user, isDirector } = useAuth();
 
-  const [formData, setFormData] = useState({
-    estudiante_id: '',
-    paciente_id: '',
-    fecha: new Date().toISOString().split('T')[0],
-    diagnostico: '',
-    tratamiento: '',
-    observaciones: '',
-    estado: 'completada',
-  });
+  const formFields = [
+    {
+      name: 'estudiante_id',
+      label: 'Estudiante',
+      type: 'select',
+      required: true,
+      options: estudiantes.map(e => ({ value: e.id, label: e.nombre })),
+    },
+    {
+      name: 'paciente_id',
+      label: 'Paciente',
+      type: 'select',
+      required: true,
+      options: pacientes.map(p => ({ value: p.id, label: p.nombre })),
+    },
+    { name: 'fecha', label: 'Fecha', type: 'date', required: true },
+    { name: 'diagnostico', label: 'Diagnóstico', required: true, fullWidth: true },
+    { name: 'tratamiento', label: 'Tratamiento Realizado', multiline: true, rows: 4, fullWidth: true },
+    { name: 'observaciones', label: 'Observaciones', multiline: true, rows: 2, fullWidth: true },
+    {
+      name: 'estado',
+      label: 'Estado',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'completada', label: 'Completada' },
+        { value: 'pendiente', label: 'Pendiente' },
+      ],
+    },
+  ];
 
   const fetchData = async () => {
     try {
       setLoading(true);
 
-      // Obtener estudiantes del docente
-      const { data: estData } = await supabase
-        .from('estudiantes')
-        .select('*')
-        .eq('docente_id', user.id);
+      // Obtener estudiantes
+      let estudiantesQuery = supabase.from('estudiantes').select('*');
+      if (!isDirector()) {
+        estudiantesQuery = estudiantesQuery.eq('docente_id', user.id);
+      }
+      const { data: estData } = await estudiantesQuery;
       setEstudiantes(estData || []);
 
       if (estData && estData.length > 0) {
@@ -89,18 +112,8 @@ const RegistroAtenciones = () => {
   const handleOpenDialog = (item = null) => {
     if (item) {
       setEditId(item.id);
-      setFormData(item);
     } else {
       setEditId(null);
-      setFormData({
-        estudiante_id: '',
-        paciente_id: '',
-        fecha: new Date().toISOString().split('T')[0],
-        diagnostico: '',
-        tratamiento: '',
-        observaciones: '',
-        estado: 'completada',
-      });
     }
     setOpenDialog(true);
   };
@@ -110,14 +123,9 @@ const RegistroAtenciones = () => {
     setError('');
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSave = async () => {
+  const handleSave = async (formDataToSave) => {
     try {
-      if (!formData.estudiante_id || !formData.paciente_id || !formData.fecha) {
+      if (!formDataToSave.estudiante_id || !formDataToSave.paciente_id || !formDataToSave.fecha) {
         setError('Por favor completa los campos obligatorios');
         return;
       }
@@ -125,13 +133,13 @@ const RegistroAtenciones = () => {
       if (editId) {
         const { error: err } = await supabase
           .from('atenciones')
-          .update(formData)
+          .update(formDataToSave)
           .eq('id', editId);
         if (err) throw err;
       } else {
         const { error: err } = await supabase
           .from('atenciones')
-          .insert([formData]);
+          .insert([formDataToSave]);
         if (err) throw err;
       }
 
@@ -207,123 +215,20 @@ const RegistroAtenciones = () => {
             tratamiento: a.tratamiento?.substring(0, 50) + (a.tratamiento?.length > 50 ? '...' : ''),
           }))}
           onEdit={handleOpenDialog}
-          onDelete={handleDelete}
+          onDelete={(row) => handleDelete(row.id)}
+          title="Atenciones"
         />
 
-        {/* Dialog para crear/editar */}
-        <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
-          <DialogTitle>
-            {editId ? '✏️ Editar Atención' : '➕ Nueva Atención'}
-          </DialogTitle>
-          <DialogContent sx={{ pt: 3 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Estudiante *</InputLabel>
-                  <Select
-                    name="estudiante_id"
-                    value={formData.estudiante_id}
-                    onChange={handleInputChange}
-                    label="Estudiante *"
-                  >
-                    {estudiantes.map((e) => (
-                      <MenuItem key={e.id} value={e.id}>
-                        {e.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Paciente *</InputLabel>
-                  <Select
-                    name="paciente_id"
-                    value={formData.paciente_id}
-                    onChange={handleInputChange}
-                    label="Paciente *"
-                  >
-                    {pacientes.map((p) => (
-                      <MenuItem key={p.id} value={p.id}>
-                        {p.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  type="date"
-                  name="fecha"
-                  value={formData.fecha}
-                  onChange={handleInputChange}
-                  label="Fecha"
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  name="diagnostico"
-                  value={formData.diagnostico}
-                  onChange={handleInputChange}
-                  label="Diagnóstico"
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  name="tratamiento"
-                  value={formData.tratamiento}
-                  onChange={handleInputChange}
-                  label="Tratamiento"
-                  multiline
-                  rows={3}
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  name="observaciones"
-                  value={formData.observaciones}
-                  onChange={handleInputChange}
-                  label="Observaciones"
-                  multiline
-                  rows={2}
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Estado</InputLabel>
-                  <Select
-                    name="estado"
-                    value={formData.estado}
-                    onChange={handleInputChange}
-                    label="Estado"
-                  >
-                    <MenuItem value="completada">✓ Completada</MenuItem>
-                    <MenuItem value="pendiente">⏳ Pendiente</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDialog}>Cancelar</Button>
-            <Button
-              onClick={handleSave}
-              variant="contained"
-              sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
-              startIcon={<SaveIcon />}
-            >
-              Guardar
-            </Button>
-          </DialogActions>
-        </Dialog>
+        <ProfessionalForm
+          open={openDialog}
+          title={editId ? 'Editar Atención' : 'Nueva Atención'}
+          fields={formFields}
+          initialData={editId ? atenciones.find(a => a.id === editId) : null}
+          onClose={handleCloseDialog}
+          onSubmit={handleSave}
+          loading={loading}
+          error={error}
+        />
       </Container>
     </>
   );
