@@ -37,8 +37,7 @@ import {
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import NavBar from './NavBar';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import FolderIcon from '@mui/icons-material/Folder';
+import { FileDownload, Folder } from '@mui/icons-material';
 import jsPDF from 'jspdf';
 
 const Reportes = () => {
@@ -255,7 +254,7 @@ const Reportes = () => {
                 onClick={generateReport}
                 disabled={!selectedEstudianteId || loading}
                 sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', p: 1.75 }}
-                startIcon={<FolderIcon />}
+                startIcon={<Folder />}
               >
                 Generar Reporte
               </Button>
@@ -329,7 +328,7 @@ const Reportes = () => {
                 <Button
                   onClick={exportPDF}
                   variant="contained"
-                  startIcon={<FileDownloadIcon />}
+                  startIcon={<FileDownload />}
                   sx={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}
                 >
                   Descargar PDF
@@ -337,7 +336,7 @@ const Reportes = () => {
                 <Button
                   onClick={exportExcel}
                   variant="contained"
-                  startIcon={<FileDownloadIcon />}
+                  startIcon={<FileDownload />}
                   sx={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}
                 >
                   Descargar CSV

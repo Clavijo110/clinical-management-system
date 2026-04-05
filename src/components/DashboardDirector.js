@@ -32,9 +32,9 @@ import {
   Groups as GroupsIcon,
   PersonAddAlt as PersonAddIcon,
   MedicalServicesOutlined as MedicalIcon,
-  TrendingUpIcon,
-  AssignmentIcon,
-  FileDownloadIcon,
+  TrendingUp,
+  Assignment,
+  FileDownload,
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -285,7 +285,7 @@ const DashboardDirector = () => {
               <Button
                 fullWidth
                 variant="contained"
-                startIcon={<AssignmentIcon />}
+                startIcon={<Assignment />}
                 onClick={() => navigate('/rubricas')}
                 sx={{
                   background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
@@ -299,7 +299,7 @@ const DashboardDirector = () => {
               <Button
                 fullWidth
                 variant="contained"
-                startIcon={<FileDownloadIcon />}
+                startIcon={<FileDownload />}
                 onClick={() => navigate('/reportes')}
                 sx={{
                   background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
@@ -314,7 +314,7 @@ const DashboardDirector = () => {
               <Button
                 fullWidth
                 variant="contained"
-                startIcon={<TrendingUpIcon />}
+                startIcon={<TrendingUp />}
                 onClick={() => navigate('/analíticas')}
                 sx={{
                   background: 'linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%)',
