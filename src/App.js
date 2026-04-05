@@ -5,7 +5,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './contexts/AuthContext';
 import Login from './components/Login';
 import DashboardDirector from './components/DashboardDirector';
-import DashboardDocente from './components/DashboardDocente';
 import GestionEstudiantes from './components/GestionEstudiantes';
 import GestionPacientes from './components/GestionPacientes';
 import RegistroAtenciones from './components/RegistroAtenciones';

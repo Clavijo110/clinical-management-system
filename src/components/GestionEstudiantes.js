@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   Container,
-  Paper,
   TextField,
   Button,
   Box,
-  Typography,
   Grid,
   LinearProgress,
   Alert,
@@ -13,7 +11,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Chip,
 } from '@mui/material';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +18,6 @@ import NavBar from './NavBar';
 import ProfessionalTable from './ProfessionalTable';
 import AddIcon from '@mui/icons-material/Add';
 import SaveIcon from '@mui/icons-material/Save';
-import DeleteIcon from '@mui/icons-material/Delete';
 
 const GestionEstudiantes = () => {
   const [estudiantes, setEstudiantes] = useState([]);
@@ -36,10 +32,6 @@ const GestionEstudiantes = () => {
     semestre_actual: 1,
     estado: 'activo',
   });
-
-  useEffect(() => {
-    fetchEstudiantes();
-  }, [user]);
 
   const fetchEstudiantes = async () => {
     try {
@@ -59,6 +51,14 @@ const GestionEstudiantes = () => {
       setLoading(false);
     }
   };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(
+    () => {
+      fetchEstudiantes();
+    },
+    [user]
+  );
 
   const handleOpenDialog = (item = null) => {
     if (item) {

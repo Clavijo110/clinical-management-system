@@ -18,9 +18,6 @@ import {
   Bar,
   LineChart,
   Line,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -50,7 +47,7 @@ const DashboardDirector = () => {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { user, isDirector } = useAuth();
+  const { isDirector } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -96,8 +93,6 @@ const DashboardDirector = () => {
 
     fetchData();
   }, [isDirector, navigate]);
-
-  const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
 
   const StatCard = ({ icon: Icon, label, value, color, onClick }) => (
     <Card

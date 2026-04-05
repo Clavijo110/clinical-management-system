@@ -11,7 +11,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
  * Se muestra en todas las páginas
  */
 const NavBar = ({ title = 'Sistema de Gestión Clínica' }) => {
-  const { user, userRole, logout, isDirector } = useAuth();
+  const { user, logout, isDirector } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = React.useState(null);
 

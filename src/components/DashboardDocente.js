@@ -18,8 +18,6 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
-  BarChart,
-  Bar,
   LineChart,
   Line,
   XAxis,
@@ -33,7 +31,6 @@ import {
   Cell,
 } from 'recharts';
 import {
-  TrendingUp,
   Person,
   People,
   Assignment,

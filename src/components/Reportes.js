@@ -3,7 +3,6 @@ import {
   Container,
   Paper,
   Button,
-  Box,
   Typography,
   Grid,
   LinearProgress,
@@ -22,17 +21,11 @@ import {
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,10 +41,6 @@ const Reportes = () => {
   const [error, setError] = useState('');
   const [openPreview, setOpenPreview] = useState(false);
   const { user, isDirector } = useAuth();
-
-  useEffect(() => {
-    fetchEstudiantes();
-  }, [user]);
 
   const fetchEstudiantes = async () => {
     try {
@@ -71,6 +60,14 @@ const Reportes = () => {
       setLoading(false);
     }
   };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(
+    () => {
+      fetchEstudiantes();
+    },
+    [user]
+  );
 
   const generateReport = async () => {
     try {
@@ -124,7 +121,6 @@ const Reportes = () => {
     if (!reportData) return;
 
     const doc = new jsPDF();
-    const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     let yPosition = 15;
 

@@ -17,7 +17,6 @@ import ProfessionalForm from './ProfessionalForm';
 
 const GestionPacientes = () => {
   const [pacientes, setPacientes] = useState([]);
-  const [estudiantes, setEstudiantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -58,7 +57,6 @@ const GestionPacientes = () => {
           estudiantesQuery = estudiantesQuery.eq('docente_id', user.id);
         }
         const { data: estData } = await estudiantesQuery;
-        setEstudiantes(estData || []);
 
         // Obtener pacientes
         let pacientesQuery = supabase.from('pacientes').select('*');

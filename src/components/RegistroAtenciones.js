@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   Container,
-  Paper,
   TextField,
   Button,
   Box,
-  Typography,
   Grid,
   LinearProgress,
   Alert,
@@ -23,7 +21,6 @@ import { useAuth } from '../contexts/AuthContext';
 import NavBar from './NavBar';
 import ProfessionalTable from './ProfessionalTable';
 import SaveIcon from '@mui/icons-material/Save';
-import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 
 const RegistroAtenciones = () => {
@@ -45,10 +42,6 @@ const RegistroAtenciones = () => {
     observaciones: '',
     estado: 'completada',
   });
-
-  useEffect(() => {
-    fetchData();
-  }, [user]);
 
   const fetchData = async () => {
     try {
@@ -84,6 +77,14 @@ const RegistroAtenciones = () => {
       setLoading(false);
     }
   };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(
+    () => {
+      fetchData();
+    },
+    [user]
+  );
 
   const handleOpenDialog = (item = null) => {
     if (item) {

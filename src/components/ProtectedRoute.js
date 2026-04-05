@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
  * @param {boolean} requireAuth - Si se requiere autenticación (por defecto true)
  */
 const ProtectedRoute = ({ children, requiredRole = null, requireAuth = true }) => {
-  const { user, userRole, loading, isAuthenticated, hasRole } = useAuth();
+  const { loading, isAuthenticated, hasRole } = useAuth();
 
   // Mostrar loading mientras se carga la autenticación
   if (loading) {

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   Container,
-  Paper,
   TextField,
   Button,
   Box,
@@ -15,11 +14,6 @@ import {
   DialogActions,
   Card,
   CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Chip,
 } from '@mui/material';
 import { supabase } from '../supabaseClient';
@@ -36,7 +30,7 @@ const Rubricas = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [error, setError] = useState('');
   const [editId, setEditId] = useState(null);
-  const { user, isDirector } = useAuth();
+  const { isDirector } = useAuth();
 
   const [formData, setFormData] = useState({
     semestre: 1,
