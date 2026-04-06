@@ -1,6 +1,26 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
+const normalizeRole = (rol) => {
+  if (rol == null) return null;
+  const s = String(rol).trim().toLowerCase();
+  return s || null;
+};
+
+async function fetchRoleForUser(userId) {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('rol')
+    .eq('id', userId)
+    .eq('estado', true)
+    .maybeSingle();
+  if (error) {
+    console.error('Error obteniendo rol:', error);
+    return undefined;
+  }
+  return normalizeRole(data?.rol);
+}
+
 // Crear contexto
 const AuthContext = createContext(null);
 
@@ -27,23 +47,16 @@ export const AuthProvider = ({ children }) => {
           console.log('Sesión encontrada para:', session.user.email);
           setUser(session.user);
           
-          // Obtener rol
-          const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('rol')
-            .eq('id', session.user.id)
-            .eq('estado', true)
-            .single();
-
-          if (roleError) {
-            console.error('Error obteniendo rol para el usuario:', session.user.email, roleError);
-          }
-
-          if (roleData && isMounted) {
-            console.log('Rol cargado exitosamente:', roleData.rol, 'para', session.user.email);
-            setUserRole(roleData.rol);
-          } else {
-            console.warn('No se encontró rol activo para el usuario:', session.user.email);
+          const role = await fetchRoleForUser(session.user.id);
+          if (isMounted) {
+            if (role !== undefined) {
+              setUserRole(role);
+              if (role) {
+                console.log('Rol cargado:', role, 'para', session.user.email);
+              } else {
+                console.warn('No se encontró rol activo para el usuario:', session.user.email);
+              }
+            }
           }
         } else {
           console.log('No se encontró sesión activa.');
@@ -60,14 +73,20 @@ export const AuthProvider = ({ children }) => {
 
     initializeAuth();
 
-    // Suscribirse a cambios
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (isMounted) {
-        setUser(session?.user ?? null);
-        if (!session) {
-          setUserRole(null);
-          setLoading(false);
-        }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+
+      if (session?.user) {
+        setUser(session.user);
+        void (async () => {
+          const role = await fetchRoleForUser(session.user.id);
+          if (!isMounted || role === undefined) return;
+          setUserRole(role);
+        })();
+      } else {
+        setUser(null);
+        setUserRole(null);
+        setLoading(false);
       }
     });
 
@@ -91,18 +110,11 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
       }
       
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('rol')
-        .eq('id', data.user.id)
-        .eq('estado', true)
-        .single();
-      
-      console.log('Role fetch response:', { roleData, roleError });
-      
-      if (roleData) {
-        setUserRole(roleData.rol);
+      const role = await fetchRoleForUser(data.user.id);
+      if (role !== undefined) {
+        setUserRole(role);
       }
+      console.log('Role fetch:', { role });
       
       return { success: true, error: null };
     } catch (err) {

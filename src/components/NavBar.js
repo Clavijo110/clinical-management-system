@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box, Menu, MenuItem, Avatar, Divider } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -126,7 +126,12 @@ const NavBar = ({ title = 'Sistema de Gestión Clínica' }) => {
               Panel Principal
             </MenuItem>
             {isDirector() && (
-              <MenuItem onClick={() => { handleMenuClose(); navigate('/configuracion'); }} sx={{ color: 'primary.main' }}>
+              <MenuItem
+                component={RouterLink}
+                to="/configuracion"
+                onClick={handleMenuClose}
+                sx={{ color: 'primary.main' }}
+              >
                 <SettingsIcon sx={{ mr: 1 }} />
                 Configuración
               </MenuItem>
