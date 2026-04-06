@@ -126,7 +126,7 @@ const NavBar = ({ title = 'Sistema de Gestión Clínica' }) => {
               Panel Principal
             </MenuItem>
             {isDirector() && (
-              <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }} sx={{ color: 'primary.main' }}>
+              <MenuItem onClick={() => { handleMenuClose(); navigate('/configuracion'); }} sx={{ color: 'primary.main' }}>
                 <SettingsIcon sx={{ mr: 1 }} />
                 Configuración
               </MenuItem>

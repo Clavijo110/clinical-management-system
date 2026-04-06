@@ -32,6 +32,7 @@ import {
   TrendingUp,
   Assignment,
   FileDownload,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -340,6 +341,20 @@ const DashboardDirector = () => {
                 }}
               >
                 Analíticas
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Button
+                fullWidth
+                variant="contained"
+                startIcon={<SettingsIcon />}
+                onClick={() => navigate('/configuracion')}
+                sx={{
+                  background: 'linear-gradient(135deg, #64748b 0%, #334155 100%)',
+                  p: 1.5,
+                }}
+              >
+                Configuración
               </Button>
             </Grid>
           </Grid>

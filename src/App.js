@@ -13,6 +13,7 @@ import GestionUsuarios from './components/GestionUsuarios';
 import RegistroAtenciones from './components/RegistroAtenciones';
 import Rubricas from './components/Rubricas';
 import Reportes from './components/Reportes';
+import Configuracion from './components/Configuracion';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Tema profesional mejorado
@@ -291,6 +292,15 @@ function App() {
               element={
                 <ProtectedRoute requiredRole={['director', 'docente']}>
                   <Reportes />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/configuracion" 
+              element={
+                <ProtectedRoute requiredRole="director">
+                  <Configuracion />
                 </ProtectedRoute>
               } 
             />
