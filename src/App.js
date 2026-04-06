@@ -1,8 +1,8 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, CircularProgress, Typography, Alert, Button } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import DashboardDirector from './components/DashboardDirector';
@@ -14,6 +14,7 @@ import RegistroAtenciones from './components/RegistroAtenciones';
 import Rubricas from './components/Rubricas';
 import Reportes from './components/Reportes';
 import Configuracion from './components/Configuracion';
+import Analiticas from './components/Analiticas';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Tema profesional mejorado
@@ -179,7 +180,13 @@ const theme = createTheme({
 });
 
 const DashboardRouter = () => {
-  const { loading, isDirector, isDocente } = useAuth();
+  const { loading, isDirector, isDocente, user, roleInactive, roleLoadError, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSalir = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   if (loading) {
     return (
@@ -197,15 +204,67 @@ const DashboardRouter = () => {
     return <DashboardDocente />;
   }
 
+  if (roleLoadError) {
+    return (
+      <Box sx={{ p: 4, maxWidth: 640, mx: 'auto' }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          No se pudo leer tu rol en la tabla <strong>user_roles</strong>: {roleLoadError}
+        </Alert>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Suele deberse a políticas RLS: hace falta que cada usuario autenticado pueda hacer{' '}
+          <strong>SELECT</strong> de su propia fila (<code>auth.uid() = id</code>). En el repo está el script{' '}
+          <strong>RLS_USER_ROLES_LEER_PROPIO.sql</strong> para crear esa política en Supabase.
+        </Typography>
+        <Button variant="outlined" onClick={handleSalir}>
+          Cerrar sesión
+        </Button>
+      </Box>
+    );
+  }
+
+  if (roleInactive) {
+    return (
+      <Box sx={{ p: 4, maxWidth: 560, mx: 'auto', textAlign: 'center' }}>
+        <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+          Cuenta desactivada
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          Tu usuario existe en <strong>user_roles</strong> pero el campo <strong>estado</strong> está en false.
+          Pide a un director que te reactive en gestión de docentes o actualiza el registro en Supabase.
+        </Typography>
+        <Button variant="outlined" onClick={handleSalir}>
+          Cerrar sesión
+        </Button>
+      </Box>
+    );
+  }
+
   return (
-    <Box sx={{ p: 4, textAlign: 'center' }}>
+    <Box sx={{ p: 4, maxWidth: 640, mx: 'auto' }}>
       <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
         Usuario autenticado sin rol asignado
       </Typography>
-      <Typography variant="body1" color="text.secondary">
-        El usuario ingresó correctamente, pero no tiene un rol asociado en la tabla <strong>user_roles</strong>.
-        Por favor revisa la configuración de Supabase y asigna el rol <strong>director</strong> o <strong>docente</strong>.
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+        Tu sesión es válida, pero no hay una fila en <strong>user_roles</strong> con el mismo{' '}
+        <strong>id</strong> que tu usuario de Authentication, o el correo con el que entras no coincide con el
+        que usaste al crear el registro.
       </Typography>
+      <Alert severity="info" sx={{ mb: 2, textAlign: 'left' }}>
+        <Typography variant="body2" component="span" display="block" sx={{ mb: 1 }}>
+          <strong>Tu correo actual:</strong> {user?.email ?? '(no disponible)'}
+        </Typography>
+        <Typography variant="body2" component="span" display="block">
+          En Supabase → SQL Editor ejecuta el archivo <strong>ASIGNAR_ROL_POR_EMAIL.sql</strong> del proyecto:
+          sustituye <code>TU_CORREO_AQUI</code> por ese mismo correo y elige rol director o docente.
+        </Typography>
+      </Alert>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+        También puedes comprobar en Table Editor que exista una fila en <code>user_roles</code> cuyo{' '}
+        <code>id</code> sea exactamente el UUID del usuario en Authentication → Users.
+      </Typography>
+      <Button variant="outlined" onClick={handleSalir}>
+        Cerrar sesión
+      </Button>
     </Box>
   );
 };
@@ -295,6 +354,16 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+
+            <Route
+              path="/analiticas"
+              element={
+                <ProtectedRoute requiredRole="director">
+                  <Analiticas />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/analíticas" element={<Navigate to="/analiticas" replace />} />
 
             <Route 
               path="/configuracion" 

@@ -31,9 +31,14 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import NavBar from './NavBar';
 import { FileDownload, Folder } from '@mui/icons-material';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDFImport from 'jspdf';
+import { applyPlugin, autoTable as drawAutoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+
+const jsPDF = jsPDFImport?.default ?? jsPDFImport;
+if (typeof jsPDF === 'function' && jsPDF.API) {
+  applyPlugin(jsPDF);
+}
 
 const Reportes = () => {
   const [estudiantes, setEstudiantes] = useState([]);
@@ -127,18 +132,36 @@ const Reportes = () => {
       const pageWidth = doc.internal.pageSize.getWidth();
       let yPosition = 20;
 
+      const tableOptions = {
+        head: [['#', 'Nombre del Paciente', 'Edad', 'Diagnóstico', 'Quirúrgico']],
+        body:
+          reportData.pacientes.length > 0
+            ? reportData.pacientes.map((p, index) => [
+                index + 1,
+                String(p.nombre ?? '—'),
+                String(p.edad ?? '—'),
+                (p.diagnostico != null ? String(p.diagnostico) : '').substring(0, 50) || '—',
+                p.quirurgico ? 'Sí' : 'No',
+              ])
+            : [['—', 'Sin registros', '—', '—', '—']],
+        startY: yPosition + 5,
+        margin: { left: 15, right: 15 },
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255] },
+      };
+
       doc.setFontSize(22);
       doc.setTextColor(30, 58, 138);
-      doc.text('REPORTE CLÍNICO SEMESTRAL', pageWidth / 2, yPosition, { align: 'center' });
+      doc.text('REPORTE CLINICO SEMESTRAL', pageWidth / 2, yPosition, { align: 'center' });
 
       yPosition += 15;
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
-      doc.text(`Estudiante: ${reportData.estudiante?.nombre ?? '—'}`, 15, yPosition);
+      doc.text(`Estudiante: ${reportData.estudiante?.nombre ?? '-'}`, 15, yPosition);
       yPosition += 8;
-      doc.text(`Semestre Actual: S${reportData.estudiante?.semestre_actual ?? '—'}`, 15, yPosition);
+      doc.text(`Semestre Actual: S${reportData.estudiante?.semestre_actual ?? '-'}`, 15, yPosition);
       yPosition += 8;
-      doc.text(`Docente Supervisor: ${user?.email ?? '—'}`, 15, yPosition);
+      doc.text(`Docente Supervisor: ${user?.email ?? '-'}`, 15, yPosition);
       yPosition += 8;
       doc.text(`Fecha de Reporte: ${new Date().toLocaleDateString('es-CO')}`, 15, yPosition);
 
@@ -150,31 +173,22 @@ const Reportes = () => {
       yPosition += 10;
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
-      doc.text(`• Total de Pacientes Activos: ${reportData.pacientes.length}`, 20, yPosition);
+      doc.text(`Total de Pacientes Activos: ${reportData.pacientes.length}`, 20, yPosition);
       yPosition += 8;
-      doc.text(`• Total de Atenciones Realizadas: ${reportData.atenciones.length}`, 20, yPosition);
+      doc.text(`Total de Atenciones Realizadas: ${reportData.atenciones.length}`, 20, yPosition);
 
       yPosition += 15;
       doc.setFontSize(16);
       doc.setTextColor(30, 58, 138);
       doc.text('LISTADO DE PACIENTES', 15, yPosition);
 
-      const pacientesData = reportData.pacientes.map((p, index) => [
-        index + 1,
-        p.nombre ?? '—',
-        p.edad ?? '—',
-        (p.diagnostico != null ? String(p.diagnostico) : '').substring(0, 50) || '—',
-        p.quirurgico ? 'Sí' : 'No',
-      ]);
+      tableOptions.startY = yPosition + 5;
 
-      autoTable(doc, {
-        head: [['#', 'Nombre del Paciente', 'Edad', 'Diagnóstico', 'Quirúrgico']],
-        body: pacientesData.length ? pacientesData : [['—', 'Sin registros', '—', '—', '—']],
-        startY: yPosition + 5,
-        margin: { left: 15, right: 15 },
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [30, 58, 138], textColor: 255 },
-      });
+      if (typeof doc.autoTable === 'function') {
+        doc.autoTable(tableOptions);
+      } else {
+        drawAutoTable(doc, tableOptions);
+      }
 
       const tableBottom = doc.lastAutoTable?.finalY ?? yPosition + 20;
       const finalY = tableBottom + 30;
@@ -183,7 +197,8 @@ const Reportes = () => {
       doc.setFontSize(11);
       doc.text('Firma Docente Supervisor', 15, finalY + 7);
 
-      const safeName = (reportData.estudiante?.nombre ?? 'reporte').replace(/\s/g, '_');
+      const rawName = reportData.estudiante?.nombre ?? 'reporte';
+      const safeName = String(rawName).replace(/[^\w-]+/g, '_').replace(/^_|_$/g, '') || 'reporte';
       doc.save(`reporte_${safeName}.pdf`);
     } catch (err) {
       console.error(err);

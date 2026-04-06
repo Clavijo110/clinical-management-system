@@ -7,18 +7,49 @@ const normalizeRole = (rol) => {
   return s || null;
 };
 
+/**
+ * Lee user_roles sin filtrar por estado en SQL (si estado=false, se marca inactive).
+ * Así no “perdemos” la fila; los errores de RLS no se confunden con “sin rol”.
+ */
 async function fetchRoleForUser(userId) {
   const { data, error } = await supabase
     .from('user_roles')
-    .select('rol')
+    .select('rol, estado')
     .eq('id', userId)
-    .eq('estado', true)
     .maybeSingle();
+
   if (error) {
-    console.error('Error obteniendo rol:', error);
-    return undefined;
+    console.error('Error obteniendo rol (user_roles):', error.code, error.message);
+    return {
+      rol: null,
+      inactive: false,
+      fetchError: error.message || 'No se pudo leer user_roles',
+    };
   }
-  return normalizeRole(data?.rol);
+
+  if (!data) {
+    return { rol: null, inactive: false, fetchError: null };
+  }
+
+  if (data.estado === false) {
+    return {
+      rol: null,
+      inactive: true,
+      fetchError: null,
+    };
+  }
+
+  return {
+    rol: normalizeRole(data.rol),
+    inactive: false,
+    fetchError: null,
+  };
+}
+
+function applyRoleResult(setUserRole, setRoleInactive, setRoleLoadError, result) {
+  setRoleLoadError(result.fetchError || null);
+  setRoleInactive(Boolean(result.inactive));
+  setUserRole(result.rol ?? null);
 }
 
 // Crear contexto
@@ -28,6 +59,8 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [roleInactive, setRoleInactive] = useState(false);
+  const [roleLoadError, setRoleLoadError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -47,15 +80,17 @@ export const AuthProvider = ({ children }) => {
           console.log('Sesión encontrada para:', session.user.email);
           setUser(session.user);
           
-          const role = await fetchRoleForUser(session.user.id);
+          const result = await fetchRoleForUser(session.user.id);
           if (isMounted) {
-            if (role !== undefined) {
-              setUserRole(role);
-              if (role) {
-                console.log('Rol cargado:', role, 'para', session.user.email);
-              } else {
-                console.warn('No se encontró rol activo para el usuario:', session.user.email);
-              }
+            applyRoleResult(setUserRole, setRoleInactive, setRoleLoadError, result);
+            if (result.rol) {
+              console.log('Rol cargado:', result.rol, 'para', session.user.email);
+            } else if (result.fetchError) {
+              console.warn('Rol no leído (error):', result.fetchError);
+            } else if (result.inactive) {
+              console.warn('Usuario con rol desactivado (estado=false):', session.user.email);
+            } else {
+              console.warn('Sin fila en user_roles para:', session.user.email, session.user.id);
             }
           }
         } else {
@@ -79,13 +114,15 @@ export const AuthProvider = ({ children }) => {
       if (session?.user) {
         setUser(session.user);
         void (async () => {
-          const role = await fetchRoleForUser(session.user.id);
-          if (!isMounted || role === undefined) return;
-          setUserRole(role);
+          const result = await fetchRoleForUser(session.user.id);
+          if (!isMounted) return;
+          applyRoleResult(setUserRole, setRoleInactive, setRoleLoadError, result);
         })();
       } else {
         setUser(null);
         setUserRole(null);
+        setRoleInactive(false);
+        setRoleLoadError(null);
         setLoading(false);
       }
     });
@@ -110,11 +147,9 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
       }
       
-      const role = await fetchRoleForUser(data.user.id);
-      if (role !== undefined) {
-        setUserRole(role);
-      }
-      console.log('Role fetch:', { role });
+      const result = await fetchRoleForUser(data.user.id);
+      applyRoleResult(setUserRole, setRoleInactive, setRoleLoadError, result);
+      console.log('Role fetch:', result);
       
       return { success: true, error: null };
     } catch (err) {
@@ -130,6 +165,8 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
       setUser(null);
       setUserRole(null);
+      setRoleInactive(false);
+      setRoleLoadError(null);
       setError(null);
       return { success: true, error: null };
     } catch (err) {
@@ -153,6 +190,8 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(() => ({
     user,
     userRole,
+    roleInactive,
+    roleLoadError,
     loading,
     error,
     login,
@@ -161,7 +200,7 @@ export const AuthProvider = ({ children }) => {
     isDirector,
     isDocente,
     isAuthenticated,
-  }), [user, userRole, loading, error, login, logout, hasRole, isDirector, isDocente, isAuthenticated]);
+  }), [user, userRole, roleInactive, roleLoadError, loading, error, login, logout, hasRole, isDirector, isDocente, isAuthenticated]);
 
   return (
     <AuthContext.Provider value={value}>

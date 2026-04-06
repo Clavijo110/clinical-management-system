@@ -334,7 +334,7 @@ const DashboardDirector = () => {
                 fullWidth
                 variant="contained"
                 startIcon={<TrendingUp />}
-                onClick={() => navigate('/analíticas')}
+                onClick={() => navigate('/analiticas')}
                 sx={{
                   background: 'linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%)',
                   p: 1.5,
